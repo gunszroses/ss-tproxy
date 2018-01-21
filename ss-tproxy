@@ -71,32 +71,15 @@ function chnip_update() {
 }
 
 function ipts_update() {
-    iptables -t mangle -F
-    iptables -t mangle -X SS-UDP &> /dev/null
     iptables -t nat -F
     iptables -t nat -X SS-TCP &> /dev/null
-
-    iptables -t mangle -N SS-UDP
-    iptables -t mangle -A SS-UDP -d 0/8 -j RETURN
-    iptables -t mangle -A SS-UDP -d 127/8 -j RETURN
-    iptables -t mangle -A SS-UDP -d 10/8 -j RETURN
-    iptables -t mangle -A SS-UDP -d 169.254/16 -j RETURN
-    iptables -t mangle -A SS-UDP -d 172.16/12 -j RETURN
-    iptables -t mangle -A SS-UDP -d 192.168/16 -j RETURN
-    iptables -t mangle -A SS-UDP -d 224/4 -j RETURN
-    iptables -t mangle -A SS-UDP -d 240/4 -j RETURN
-    iptables -t mangle -A SS-UDP -d ${server_addr} -j RETURN
-    iptables -t mangle -A SS-UDP -m set --match-set chnip dst -j RETURN
-    iptables -t mangle -A SS-UDP -p udp -j TPROXY --tproxy-mark ${iptables_tproxy_mark} --on-ip ${iptables_tproxy_ip} --on-port ${iptables_tproxy_port}
-
-    iptables -t mangle -A PREROUTING -p udp -s ${iptables_intranet} -j SS-UDP
 
     iptables -t nat -N SS-TCP
     iptables -t nat -A SS-TCP -d 0/8 -j RETURN
     iptables -t nat -A SS-TCP -d 127/8 -j RETURN
     iptables -t nat -A SS-TCP -d 10/8 -j RETURN
     iptables -t nat -A SS-TCP -d 169.254/16 -j RETURN
-    iptables -t nat -A SS-TCP -d 172.16/12 -j RETURN
+    iptables -t nat -A SS-TCP -d 172.16/16 -j RETURN
     iptables -t nat -A SS-TCP -d 192.168/16 -j RETURN
     iptables -t nat -A SS-TCP -d 224/4 -j RETURN
     iptables -t nat -A SS-TCP -d 240/4 -j RETURN
@@ -110,8 +93,13 @@ function ipts_update() {
     iptables -t nat -A POSTROUTING -s ${iptables_intranet} -j MASQUERADE
 }
 function ipts_origin() {
-    iptables -t mangle -F
-    iptables -t mangle -X SS-UDP &> /dev/null
+    iptables -t nat -F
+    iptables -t nat -X SS-TCP &> /dev/null
+
+    iptables -t nat -A POSTROUTING -s ${iptables_intranet} -j MASQUERADE
+}
+
+function ipts_origin() {
     iptables -t nat -F
     iptables -t nat -X SS-TCP &> /dev/null
 
@@ -155,15 +143,15 @@ function current_ip() {
 }
 
 function start() {
-    if [ ! -e ${chinadns_chnroute} ]; then
-        echo -e "\e[37m${chinadns_chnroute}\e[0m  [\e[1;35mnot_exist\e[0m]"
-        exit 1
-    fi
+    #if [ ! -e ${chinadns_chnroute} ]; then
+    #    echo -e "\e[37m${chinadns_chnroute}\e[0m  [\e[1;35mnot_exist\e[0m]"
+    #    exit 1
+    #fi
 
-    if [ ! -e ${chinadns_iplist} ]; then
-        echo -e "\e[37m${chinadns_iplist}\e[0m  [\e[1;35mnot_exist\e[0m]"
-        exit 1
-    fi
+    #if [ ! -e ${chinadns_iplist} ]; then
+    #    echo -e "\e[37m${chinadns_iplist}\e[0m  [\e[1;35mnot_exist\e[0m]"
+    #    exit 1
+    #fi
 
     if [ ${redir_verbose} == 'true' ]; then
         nohup ss-redir -s ${server_addr} -p ${server_port} -m ${server_method} -k ${server_passwd} -b ${redir_addr} -l ${redir_port} -u -v < /dev/null &>> ${redir_log} &
@@ -171,20 +159,20 @@ function start() {
         nohup ss-redir -s ${server_addr} -p ${server_port} -m ${server_method} -k ${server_passwd} -b ${redir_addr} -l ${redir_port} -u < /dev/null &>> ${redir_log} &
     fi
 
-    if [ ${tunnel_verbose} == 'true' ]; then
-        nohup ss-tunnel -s ${server_addr} -p ${server_port} -m ${server_method} -k ${server_passwd} -b ${tunnel_addr} -l ${tunnel_port} -L ${tunnel_upstream} -u -v < /dev/null &>> ${tunnel_log} &
-    else
-        nohup ss-tunnel -s ${server_addr} -p ${server_port} -m ${server_method} -k ${server_passwd} -b ${tunnel_addr} -l ${tunnel_port} -L ${tunnel_upstream} -u < /dev/null &>> ${tunnel_log} &
-    fi
+    #if [ ${tunnel_verbose} == 'true' ]; then
+    #    nohup ss-tunnel -s ${server_addr} -p ${server_port} -m ${server_method} -k ${server_passwd} -b ${tunnel_addr} -l ${tunnel_port} -L ${tunnel_upstream} -u -v < /dev/null &>> ${tunnel_log} &
+    #else
+    #    nohup ss-tunnel -s ${server_addr} -p ${server_port} -m ${server_method} -k ${server_passwd} -b ${tunnel_addr} -l ${tunnel_port} -L ${tunnel_upstream} -u < /dev/null &>> ${tunnel_log} &
+    #fi
 
-    if [ ${chinadns_verbose} == 'true' ]; then
-        nohup chinadns -b ${chinadns_addr} -p ${chinadns_port} -s ${chinadns_upstream} -c ${chinadns_chnroute} -l ${chinadns_iplist} -m -v < /dev/null &>> ${chinadns_log} &
-    else
-        nohup chinadns -b ${chinadns_addr} -p ${chinadns_port} -s ${chinadns_upstream} -c ${chinadns_chnroute} -l ${chinadns_iplist} -m < /dev/null &>> ${chinadns_log} &
-    fi
+    #if [ ${chinadns_verbose} == 'true' ]; then
+    #    nohup chinadns -b ${chinadns_addr} -p ${chinadns_port} -s ${chinadns_upstream} -c ${chinadns_chnroute} -l ${chinadns_iplist} -m -v < /dev/null &>> ${chinadns_log} &
+    #else
+    #    nohup chinadns -b ${chinadns_addr} -p ${chinadns_port} -s ${chinadns_upstream} -c ${chinadns_chnroute} -l ${chinadns_iplist} -m < /dev/null &>> ${chinadns_log} &
+    #fi
 
-    dnsfwd_update
-    dnsforwarder -d &> /dev/null
+    #dnsfwd_update
+    #dnsforwarder -d &> /dev/null
 
     if [ ! -e ${ipset_save_file} ]; then
         chnip_update
@@ -199,20 +187,20 @@ function start() {
 
     ipfwd_on
 
-    dns_update
+    #dns_update
 }
 
 function stop() {
     pgrep ss-redir | xargs kill -9 &> /dev/null
-    pgrep ss-tunnel | xargs kill -9 &> /dev/null
-    pgrep chinadns | xargs kill -9 &> /dev/null
-    pgrep dnsforwarder | xargs kill -9 &> /dev/null
+    #pgrep ss-tunnel | xargs kill -9 &> /dev/null
+    #pgrep chinadns | xargs kill -9 &> /dev/null
+    #pgrep dnsforwarder | xargs kill -9 &> /dev/null
 
     ipts_origin
     ipset -X chnip &> /dev/null
     pbr_del
 
-    dns_origin
+    #dns_origin
 }
 
 function status() {
@@ -222,23 +210,23 @@ function status() {
         echo -e "\e[37mss-redir\e[0m\t[\e[1;35mstopped\e[0m]"
     fi
 
-    if [ $(pgrep -c ss-tunnel) -ge 1 ]; then
-        echo -e "\e[37mss-tunnel\e[0m\t[\e[1;32mrunning\e[0m]"
-    else
-        echo -e "\e[37mss-tunnel\e[0m\t[\e[1;35mstopped\e[0m]"
-    fi
+    #if [ $(pgrep -c ss-tunnel) -ge 1 ]; then
+    #    echo -e "\e[37mss-tunnel\e[0m\t[\e[1;32mrunning\e[0m]"
+    #else
+    #    echo -e "\e[37mss-tunnel\e[0m\t[\e[1;35mstopped\e[0m]"
+    #fi
 
-    if [ $(pgrep -c chinadns) -ge 1 ]; then
-        echo -e "\e[37mchinadns\e[0m\t[\e[1;32mrunning\e[0m]"
-    else
-        echo -e "\e[37mchinadns\e[0m\t[\e[1;35mstopped\e[0m]"
-    fi
+    #if [ $(pgrep -c chinadns) -ge 1 ]; then
+    #    echo -e "\e[37mchinadns\e[0m\t[\e[1;32mrunning\e[0m]"
+    #else
+    #    echo -e "\e[37mchinadns\e[0m\t[\e[1;35mstopped\e[0m]"
+    #fi
 
-    if [ $(pgrep -c dnsforwarder) -ge 1 ]; then
-        echo -e "\e[37mdnsforwarder\e[0m\t[\e[1;32mrunning\e[0m]"
-    else
-        echo -e "\e[37mdnsforwarder\e[0m\t[\e[1;35mstopped\e[0m]"
-    fi
+    #if [ $(pgrep -c dnsforwarder) -ge 1 ]; then
+    #    echo -e "\e[37mdnsforwarder\e[0m\t[\e[1;32mrunning\e[0m]"
+    #else
+    #    echo -e "\e[37mdnsforwarder\e[0m\t[\e[1;35mstopped\e[0m]"
+    #fi
 }
 
 function usage() {
